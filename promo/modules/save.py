@@ -130,9 +130,9 @@ async def startProcessFunc(_, query: CallbackQuery):
         await query.answer("Process is already running.", show_alert=True)
         return
 
-    user = users_collection.find_one({"user_id": user_id})
+    user = await users_collection.find_one({"user_id": user_id})
     if not user:
-        users_collection.insert_one({"user_id": user_id, "credits": 5})
+        await users_collection.insert_one({"user_id": user_id, "credits": 5})
         remaining = 5
     else:
         remaining = user.get("credits", 5)
@@ -142,16 +142,25 @@ async def startProcessFunc(_, query: CallbackQuery):
         return
 
     remaining -= 1
-    users_collection.update_one({"user_id": user_id}, {"$set": {"credits": remaining}})
+    await users_collection.update_one({"user_id": user_id}, {"$set": {"credits": remaining}})
 
     if savedb.get(chat_id) and savedb[chat_id].get(user_id) and savedb[chat_id][user_id]["user"] == user_id:
         sendedFunc.setdefault(user_id, {})[chat_id] = True
         for appint in apps:
-            app_shuffled_lists[appint] = usernames[:]
+            uchats_doc = await users_collection.find_one({"user_id": user_id})
+            
+            if uchats_doc and 'chats' in uchats_doc and isinstance(uchats_doc['chats'], list) and uchats_doc['chats']:
+                app_shuffled_lists[appint] = uchats_doc['chats'][:]
+            else:
+                app_shuffled_lists[appint] = usernames[:]
+
             random.shuffle(app_shuffled_lists[appint])
+
             tasks[user_id] = {
                 chat_id: [
-                    asyncio.create_task(sendOrForwardMessages(appint, chat_id, user_id, app_shuffled_lists[appint]))
+                    asyncio.create_task(
+                        sendOrForwardMessages(appint, chat_id, user_id, app_shuffled_lists[appint])
+                    )
                 ]
             }
         await query.answer(f"Process started. You have {remaining} credits remaining.", show_alert=True)
@@ -207,12 +216,12 @@ async def sendOrForwardMessages(appint, chat_id, user_id, sufflelist):
                                     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f'{group.title}', url=f'{link}')]])
                                     await app.send_message(config.LOGS_CHANNEL_ID, f"forwarded in forum with @{appint.me.username}", reply_markup=keyboard)
                                     
-                                    for_doc = forwarded.find_one({'user_id': user_id})
+                                    for_doc = await forwarded.find_one({'user_id': user_id})
                                     if for_doc:
                                         count = for_doc['count'] + 1
-                                        forwarded.update_one({'user_id': user_id}, {'$set': {'count': count}})
+                                        await forwarded.update_one({'user_id': user_id}, {'$set': {'count': count}})
                                     else:
-                                        forwarded.insert_one({'user_id': user_id, 'count': 1})
+                                        await forwarded.insert_one({'user_id': user_id, 'count': 1})
                                     
                                     await asyncio.sleep(config.TIME_DIFF)
                                     found = True
@@ -230,12 +239,12 @@ async def sendOrForwardMessages(appint, chat_id, user_id, sufflelist):
                             keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f'{group.title}', url=f'{link}')]])
                             await app.send_message(config.LOGS_CHANNEL_ID, f"forwarded in group with @{appint.me.username}", reply_markup=keyboard)
 
-                            for_doc = forwarded.find_one({'user_id': user_id})
+                            for_doc = await forwarded.find_one({'user_id': user_id})
                             if for_doc:
                                 count = for_doc['count'] + 1
-                                forwarded.update_one({'user_id': user_id}, {'$set': {'count': count}})
+                                await forwarded.update_one({'user_id': user_id}, {'$set': {'count': count}})
                             else:
-                                forwarded.insert_one({'user_id': user_id, 'count': 1})
+                                await await forwarded.insert_one({'user_id': user_id, 'count': 1})
                             
                             await asyncio.sleep(300)
                     except Exception as e:
@@ -284,7 +293,7 @@ async def resetcred():
         next_midnight = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
         wait_time = (next_midnight - now).total_seconds()
         await asyncio.sleep(wait_time)
-        users_collection.update_many({}, {"$set": {"credits": 5}})
+        await users_collection.update_many({}, {"$set": {"credits": 5}})
         msg = await app.send_message(config.GROUP_ID, "Credits for all users have been reset.")
         await app.pin_chat_message(message.chat.id, msg.id)
 

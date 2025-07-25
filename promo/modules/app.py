@@ -1,7 +1,7 @@
 from pyrogram import filters
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 import config
-from promo.database impor blocked, userscollection
+from promo.database import blocked, userscollection
 from promo.utils.usernames import usernames
 
 user_temp_data = {}
@@ -72,7 +72,8 @@ async def handle_chats_choice(_, query: CallbackQuery):
             "Alright! Send me a TXT file containing chat links.\n\n"
             "Format requirements:\n"
             "- Each username must start with @\n"
-            "- Separate usernames with new lines\n\n"
+            "- Separate usernames with new lines\n"
+            "- No duplicate usernames allowed\n\n"
             "Example:\n"
             "@username1\n"
             "@username2\n"
@@ -82,9 +83,9 @@ async def handle_chats_choice(_, query: CallbackQuery):
     else:
         user_temp_data[user_id] = {
             "state": "confirmation",
-            "chats": usernames
+            "chats": username
         }
-        await show_confirmation(query, len(usernames))
+        await show_confirmation(query, len(username))
 
 
 async def show_confirmation(query, count):
@@ -117,19 +118,33 @@ async def handle_chats_file(_, message: Message):
         with open(file, 'r') as f:
             content = f.read()
         
-        usernames = []
+        raw_usernames = []
+        duplicates = set()
+        unique_usernames = set()
+        
         for line in content.splitlines():
             line = line.strip()
             if line.startswith("@"):
-                usernames.append(line)
+                if line.lower() in unique_usernames:
+                    duplicates.add(line.lower())
+                else:
+                    unique_usernames.add(line.lower())
+                    raw_usernames.append(line)
         
-        if not usernames:
+        if duplicates:
+            dup_message = "Found duplicate usernames:\n"
+            dup_message += "\n".join(f"- {d}" for d in duplicates)
+            dup_message += "\n\nPlease fix these duplicates and resend the file."
+            await message.reply(dup_message)
+            return
+        
+        if not raw_usernames:
             await message.reply("No valid usernames found in the file. Please check the format.")
             return
         
         user_temp_data[user_id] = {
             "state": "confirmation",
-            "chats": usernames
+            "chats": raw_usernames
         }
         
         keyboard = InlineKeyboardMarkup([
@@ -137,7 +152,7 @@ async def handle_chats_file(_, message: Message):
              InlineKeyboardButton("Back", callback_data="has_chats_back")]
         ])
         await message.reply(
-            f"Found {len(usernames)} valid chats.\n\n"
+            f"Found {len(raw_usernames)} valid and unique chats.\n\n"
             "Please confirm to save these chats to your account.",
             reply_markup=keyboard
         )

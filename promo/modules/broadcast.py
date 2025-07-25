@@ -7,14 +7,14 @@ from pyrogram.types import Message
 
 client = MongoClient(config.MONGO_DB_URI)
 db = client['MAIN']
-users_collection = db['users']
+userscol = db['users']
 
-user_ids = [user['user_id'] for user in users_collection.find({}, {"user_id": 1})]
+user_ids = [user['user_id'] for user in userscol.find({}, {"user_id": 1})]
 
-@app.on_message(filters.command('broadcast') & filters.user(config.NIGGERS))
+@app.on_message(filters.command('broadcast') & filters.user(config.OWNER_ID))
 async def broadcast(_, m: Message):
     if m.chat.type != 'ChatType.PRIVATE':
-        await m.reply_text("You can't you this command in group.")
+        await m.reply_text("您不能在群组中使用此命令。")
         return
         
     if m.reply_to_message:
@@ -31,8 +31,8 @@ async def broadcast(_, m: Message):
                     print(f"Error broadcasting to user {user_id}: {str(e)}")
                     continue
 
-            await m.reply_text(f"Broadcasted message to `{successful_count}` users!")
+            await m.reply_text(f"广播消息至 `{successful_count}` 用户!")
         except Exception as e:
-            await m.reply_text(f"Oops! An error occurred while broadcasting: {str(e)}")
+            await m.reply_text(f"糟糕！广播时出错：{str(e)}")
     else:
-        await m.reply_text("Reply to a message you want to broadcast.")
+        await m.reply_text("回复您想要广播的消息。")

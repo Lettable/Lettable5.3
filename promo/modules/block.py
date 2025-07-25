@@ -21,15 +21,15 @@ async def blockusr(app, message: Message):
 
     if user:
         if blocked.find_one({'user_id': user.id}):
-            await message.reply_text(f"User {user.mention} is already blocked.")
+            await message.reply_text(f"用户 {user.mention} 已被阻止。")
         else:
             blocked.insert_one({
                 'user_id': user.id,
                 'username': user.username
             })
-            await message.reply_text(f"User {user.mention} has been blocked.")
+            await message.reply_text(f"用户 {user.mention} 已被阻止。")
     else:
-        await message.reply_text("User not found.")
+        await message.reply_text("未找到用户。")
 
 @app.on_message(filters.command('unblock') & filters.user(config.NIGGERS))
 async def unblockusr(app, message: Message):
@@ -44,10 +44,10 @@ async def unblockusr(app, message: Message):
 
     if user:
         if not blocked.find_one({'user_id': user.id}):
-            await message.reply_text(f"User {user.mention} is not blocked.")
+            await message.reply_text(f"用户 {user.mention} 没有被阻塞。")
         else:
             blocked.delete_one({'user_id': user.id})
-            await message.reply_text(f"User {user.mention} has been unblocked.")
+            await message.reply_text(f"用户 {user.mention} 已解除封锁。")
     else:
         await message.reply_text("User not found.")
 
@@ -55,7 +55,7 @@ async def unblockusr(app, message: Message):
 async def blocked_list(app, message: Message):
     blockedusers = blocked.find()
     if blocked.count_documents({}) == 0:
-        await message.reply_text("No users are blocked.")
+        await message.reply_text("没有用户被阻止。")
         return
 
     blockedlist = "Blocked Users:\n"
